@@ -109,4 +109,4 @@ Run the detection script:
 
 The script will print progress to the console and display the final image with the detected defects. A new image file will also be saved in the same directory.
 
-![](https://github.com/Avishyf/AI_def_det/blob/main/output_detections.jpg)
+![](https://github.com/Avishyf/AI_def_det/blob/main/Detect_results.jpg)
