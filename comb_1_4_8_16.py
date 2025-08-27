@@ -1,0 +1,283 @@
+from ultralytics import YOLO
+from PIL import Image, ImageDraw, ImageFont
+import os
+import numpy as np
+
+conf1 = 0.5 # Confidence threshold for full image
+conf4 = 0.2 # Confidence threshold for 4-part splits
+conf8 = 0.2 # Confidence threshold for 8-part splits
+conf16 = 0.2 # Confidence threshold for 16-part splits
+
+# Load the trained YOLOv8 model
+model = YOLO(r'C:\Users\Ronen\OneDrive\Desktop\runs\detect\yolov8m_Final_More2\weights\best.pt')
+
+# Open the original image
+img_path = r'C:\Users\Ronen\OneDrive\Desktop\PCB2_problem3.jpg'
+
+# --- IoU Calculation Function ---
+def calculate_iou(boxA, boxB):
+    # boxA and boxB are [x1, y1, x2, y2]
+    xA = max(boxA[0], boxB[0])
+    yA = max(boxA[1], boxB[1])
+    xB = min(boxA[2], boxB[2])
+    yB = min(boxA[3], boxB[3])
+
+    interArea = max(0, xB - xA) * max(0, yB - yA)
+
+    boxAArea = (boxA[2] - boxA[0]) * (boxA[3] - boxA[1])
+    boxBArea = (boxB[2] - boxB[0]) * (boxB[3] - boxB[1])
+
+    iou = interArea / float(boxAArea + boxBArea - interArea)
+    return iou
+
+# --- Non-Maximum Suppression (NMS) Function ---
+def apply_nms(detections, iou_threshold=0.5):
+    if not detections:
+        return []
+
+    # Sort detections by confidence score in descending order
+    # Ensure confidence is a float for proper sorting
+    detections.sort(key=lambda x: x['conf'], reverse=True)
+
+    keep_boxes = []
+    
+    # Track indices of detections to process
+    indexes = list(range(len(detections)))
+
+    while len(indexes) > 0:
+        # Take the box with the highest confidence
+        best_box_idx = indexes[0]
+        best_box = detections[best_box_idx]
+        keep_boxes.append(best_box)
+
+        # Remove the best_box from consideration
+        indexes_to_remove = [best_box_idx] # Always remove the current best box
+
+        # Compare it with all remaining boxes
+        for i in range(1, len(indexes)):
+            current_box_idx = indexes[i]
+            current_box = detections[current_box_idx]
+
+            # Calculate IoU
+            iou = calculate_iou(best_box['xyxy'], current_box['xyxy'])
+
+            # If IoU is above threshold, it's a duplicate, mark for removal
+            if iou > iou_threshold and best_box['cls'] == current_box['cls']: # Consider same class for NMS
+                indexes_to_remove.append(current_box_idx)
+        
+        # Create a new list of indexes, excluding those marked for removal
+        # This is more robust than deleting from the list directly
+        indexes = [idx for idx in indexes if idx not in indexes_to_remove]
+    
+    return keep_boxes
+
+
+
+original_img = Image.open(img_path).convert('RGB') # Ensure image is in RGB mode
+w, h = original_img.size
+
+# List to collect ALL detections from all splits, adjusted to original image coordinates
+all_raw_detections = [] # Renamed to emphasize these are pre-NMS
+
+# --- Process full image (no split) ---
+print("\n \n Processing full image (no split)... \n \n")
+results = model(img_path , conf=conf1)
+
+if results and len(results[0].boxes) > 0:
+    for det in results[0].boxes:
+        box_xyxy = det.xyxy[0].cpu().numpy()
+        adjusted_detection = {
+            'xyxy': [
+                box_xyxy[0],
+                box_xyxy[1],
+                box_xyxy[2],
+                box_xyxy[3]
+            ],
+            'conf': det.conf[0].item(),
+            'cls': det.cls[0].item()
+        }
+        all_raw_detections.append(adjusted_detection)
+#print(f"Collected {len(all_raw_detections)} raw detections from full image so far.")
+
+# --- Process 4-part splits ---
+print("\n \n Processing 4-part splits... \n \n")
+quarters_4_coords = [
+    (0, 0, w // 2, h // 2),         # Top-left
+    (w // 2, 0, w, h // 2),         # Top-right
+    (0, h // 2, w // 2, h),         # Bottom-left
+    (w // 2, h // 2, w, h)          # Bottom-right
+]
+
+for i, box_coords in enumerate(quarters_4_coords):
+    part_img = original_img.crop(box_coords)
+    part_img_path = f'temp_4_part_{i}.jpg'
+    part_img.save(part_img_path)
+    
+    results = model(part_img_path , conf = conf4)
+    
+    if results and len(results[0].boxes) > 0:
+        offset_x, offset_y, _, _ = box_coords
+        for det in results[0].boxes:
+            box_xyxy = det.xyxy[0].cpu().numpy()
+            adjusted_detection = {
+                'xyxy': [
+                    box_xyxy[0] + offset_x,
+                    box_xyxy[1] + offset_y,
+                    box_xyxy[2] + offset_x,
+                    box_xyxy[3] + offset_y
+                ],
+                'conf': det.conf[0].item(),
+                'cls': det.cls[0].item()
+            }
+            all_raw_detections.append(adjusted_detection)
+            
+    os.remove(part_img_path)
+print(f"Collected {len(all_raw_detections)} raw detections from 4-part splits so far.")
+
+
+# --- Process 8-part splits ---
+print("\n \n Processing 8-part splits...\n \n")
+quarters_8_coords = [
+    (0, 0, w // 4, h // 2),             # Top-left 1
+    (w // 4, 0, w // 2, h // 2),        # Top-left 2
+    (w // 2, 0, 3 * w // 4, h // 2),    # Top-right 1
+    (3 * w // 4, 0, w, h // 2),         # Top-right 2
+    (0, h // 2, w // 4, h),             # Bottom-left 1
+    (w // 4, h // 2, w // 2, h),        # Bottom-left 2
+    (w // 2, h // 2, 3 * w // 4, h),    # Bottom-right 1
+    (3 * w // 4, h // 2, w, h),         # Bottom-right 2
+]
+
+for i, box_coords in enumerate(quarters_8_coords):
+    part_img = original_img.crop(box_coords)
+    part_img_path = f'temp_8_part_{i}.jpg'
+    part_img.save(part_img_path)
+    
+    results = model(part_img_path , conf = conf8)
+    
+    if results and len(results[0].boxes) > 0:
+        offset_x, offset_y, _, _ = box_coords
+        for det in results[0].boxes:
+            box_xyxy = det.xyxy[0].cpu().numpy()
+            adjusted_detection = {
+                'xyxy': [
+                    box_xyxy[0] + offset_x,
+                    box_xyxy[1] + offset_y,
+                    box_xyxy[2] + offset_x,
+                    box_xyxy[3] + offset_y
+                ],
+                'conf': det.conf[0].item(),
+                'cls': det.cls[0].item()
+            }
+            all_raw_detections.append(adjusted_detection)
+            
+    os.remove(part_img_path)
+print(f"Total raw detections collected: {len(all_raw_detections)} (from the whole image, 4-part and 8-part splits).")
+
+# --- Process 16-part splits (4x4 grid) ---
+print("\n \n Processing 16-part splits (4x4 grid)...\n \n")
+quarters_16_coords = []
+for row in range(4):
+    for col in range(4):
+        x1 = col * (w // 4)
+        y1 = row * (h // 4)
+        x2 = (col + 1) * (w // 4) if col < 3 else w
+        y2 = (row + 1) * (h // 4) if row < 3 else h
+        quarters_16_coords.append((x1, y1, x2, y2))
+
+for i, box_coords in enumerate(quarters_16_coords):
+    part_img = original_img.crop(box_coords)
+    part_img_path = f'temp_16_part_{i}.jpg'
+    part_img.save(part_img_path)
+    
+    results = model(part_img_path, conf=conf16)  # Use conf8 or set a new threshold if needed
+    
+    if results and len(results[0].boxes) > 0:
+        offset_x, offset_y, _, _ = box_coords
+        for det in results[0].boxes:
+            box_xyxy = det.xyxy[0].cpu().numpy()
+            adjusted_detection = {
+                'xyxy': [
+                    box_xyxy[0] + offset_x,
+                    box_xyxy[1] + offset_y,
+                    box_xyxy[2] + offset_x,
+                    box_xyxy[3] + offset_y
+                ],
+                'conf': det.conf[0].item(),
+                'cls': det.cls[0].item()
+            }
+            all_raw_detections.append(adjusted_detection)
+    os.remove(part_img_path)
+print(f"Total raw detections collected after 16-part splits: {len(all_raw_detections)}.")
+
+# --- Apply Non-Maximum Suppression to filter detections ---
+# You can adjust the iou_threshold. A common value is 0.5.
+# If you find too many duplicates, increase it. If it removes too many valid boxes, decrease it.
+final_detections_after_nms = apply_nms(all_raw_detections, iou_threshold=0.3)
+print(f"Final detections after NMS: {len(final_detections_after_nms)}.")
+
+
+# --- Plot all collected detections onto a single, clean copy of the original image ---
+final_img_with_detections = original_img.copy() # Start with a clean copy of the original
+
+draw = ImageDraw.Draw(final_img_with_detections)
+
+# Define some colors for classes (you can extend this or fetch from model.names if available)
+colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (0, 255, 255), (255, 0, 255), (128, 0, 0), (0, 128, 0)]
+
+# Try to load a font for better text rendering
+try:
+    font = ImageFont.truetype("arial.ttf", 40) # Font size remains 40
+except IOError:
+    font = ImageFont.load_default() # Fallback to default font if arial.ttf is not found
+    print("Warning: arial.ttf not found. Using default font.")
+
+
+for det in final_detections_after_nms: # Use the NMS-filtered detections
+    x1, y1, x2, y2 = det['xyxy']
+    conf = det['conf']
+    cls_id = int(det['cls'])
+    
+    # Choose a color based on class ID
+    box_color = colors[cls_id % len(colors)]
+    
+    # Determine text color based on the box_color for better contrast
+    # For light colors (like yellow, cyan, green), use black text. Otherwise, use white text.
+    if box_color == (0, 255, 0) or box_color == (255, 255, 0) or box_color == (0, 255, 255):
+        text_fill_color = (0, 0, 0) # Black text for light boxes
+    else:
+        text_fill_color = (255, 255, 255) # White text for darker boxes
+
+    # Draw rectangle
+    draw.rectangle([x1, y1, x2, y2], outline=box_color, width=3) # width for box border
+    
+    # Prepare label
+    class_name = model.names.get(cls_id, f"Class {cls_id}") # Get class name from model.names
+    label = f"{class_name}: {conf:.2f}"
+    
+    # Get text size for background
+    bbox = draw.textbbox((0, 0), label, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+    
+    # Draw a filled rectangle for the text background
+    text_x = x1
+    text_y = y1 - text_height - 5 # 5 pixels padding above the box
+    
+    # Adjust text_y if it goes above the image top
+    if text_y < 0:
+        text_y = y2 + 5 # Place below the box if not enough space above
+
+    draw.rectangle([text_x, text_y, text_x + text_width, text_y + text_height], fill=box_color) # Background color is box color
+    
+    # Draw the text with selected fill color
+    draw.text((text_x, text_y), label, fill=text_fill_color, font=font) 
+
+# Save the final stitched image with all detections
+output_filename = 'output_full_with_deduplicated_detections.jpg' # Changed filename again
+final_img_with_detections.save(output_filename)
+final_img_with_detections.show()
+print(f"Final image saved to {output_filename}")
+
+# Clean up any leftover temporary files
+# The temp files from both 4-part and 8-part processing are removed within their loops.
