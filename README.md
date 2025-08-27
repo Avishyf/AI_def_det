@@ -49,11 +49,13 @@ edit your data.yaml file so it will point to the right directories where you sto
 
 Thw data needs to annonated, the way was chosen by us is with RoboFlow, our data is a mix of an exisiting data that we topped with our own addition
 
-[the main dataset](https://universe.roboflow.com/hanxu-rgxfn/pcb22)
+[The main dataset](https://universe.roboflow.com/hanxu-rgxfn/pcb22)
 
-[our addition](https://app.roboflow.com/pcb-project-mqih2/custom-workflow-object-detection-bwd0k/browse?queryText=&pageSize=50&startingIndex=0&browseQuery=true)
+[Our addition](https://app.roboflow.com/pcb-project-mqih2/custom-workflow-object-detection-bwd0k/browse?queryText=&pageSize=50&startingIndex=0&browseQuery=true)
 
-the datat needs to be organized this way:
+Since our addition is smaller than the original batch we added augmantation that is different than the code itself has, that way we increased the dataset by 3 times so it will about the same as the other defects.
+
+The datat needs to be organized this way:
 ```
 /data
 ├── /images
@@ -81,6 +83,9 @@ the datat needs to be organized this way:
         ├── imageX.txt
         └── ...
 ```
+
+We chose a specfic way of augmentation from trails and errors, untill we got to the conclusion that this is the best balance. The same way we chose the size of the model and got to YOLOv8m.
+
 Run the training script:
 
 `python train.py`
