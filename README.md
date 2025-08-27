@@ -13,7 +13,7 @@ Multi-Scale Inference: The system runs inference on the full image, and then on 
 
 Non-Maximum Suppression (NMS): An Intersection over Union (IoU) based NMS algorithm is implemented to filter out duplicate detections from the multiple inference runs.
 
-Automated Labeling: Detections are automatically labeled with class names and confidence scores and plotted onto the original image.
+the classes the model is trained to find are: `['Bad_Solder', 'mouse_bite', 'open_circuit', 'short', 'spur', 'spurious_copper']`
 
 # Project Structure
 train.py: This script is used to train the YOLOv8 model on a custom PCB defect dataset. It configures the training process, including epochs, batch size, image size, and various data augmentation settings.
