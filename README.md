@@ -45,7 +45,7 @@ you can use the trained model for this project by downloading the weights [here]
 
 Place your custom dataset in a directory and update the data path in train.py to point to your data.yaml file.
 
-edit your data.yaml file so it will point to the right directories where you store your data
+edit your data.yaml file so it will point to the right directories where you store your data. [it should look like this](https://github.com/Avishyf/AI_def_det/blob/main/data.yaml)
 
 Thw data needs to annonated, the way was chosen by us is with RoboFlow, our data is a mix of an exisiting data that we topped with our own addition
 
