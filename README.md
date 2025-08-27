@@ -1,6 +1,8 @@
 # AI_def_det
 AI PCB Defects Detector
 
+Co-authored-by: [DanielKudarsky](https://github.com/DanielKudarsky)
+
 # PCB Defect Detection with YOLOv8
 This project implements an AI-based system for detecting defects on Printed Circuit Boards (PCBs) using the YOLOv8 object detection model. The system is designed to improve detection accuracy for high-ressolution images, especially for small defects, by processing the full image as well as multiple subdivided parts of the image and then consolidating the results.
 
