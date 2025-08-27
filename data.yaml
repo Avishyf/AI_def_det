@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 6
+names: ['Bad_Solder', 'mouse_bite', 'open_circuit', 'short', 'spur', 'spurious_copper']
+
+roboflow:
+  workspace: taka-yflx9
+  project: pcb22-wvceh
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/taka-yflx9/pcb22-wvceh/dataset/1
