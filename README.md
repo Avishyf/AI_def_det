@@ -111,4 +111,4 @@ The script will print progress to the console and display the final image with t
 
 ![](https://github.com/Avishyf/AI_def_det/blob/main/Detect_results.jpg)
 
-*This image was taken from Wikipedia
+*This image was originally taken from Wikipedia before it was modified
